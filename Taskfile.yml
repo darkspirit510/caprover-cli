@@ -1,0 +1,55 @@
+# https://taskfile.dev
+
+version: '2'
+
+env:
+  REQUIRED_GO_VERSION: '1.13'
+
+tasks:
+  world:
+    desc: "do - literally - everything"
+    silent: true
+    cmds:
+      - task: verify
+      - task: install
+#      - task: lint
+      - task: test
+
+  install-tools:
+    desc: "install development tools"
+    silent: true
+    cmds:
+      - mkdir -p bin/
+      - curl -sSfL https://install.goreleaser.com/github.com/golangci/golangci-lint.sh | sh -s v1.23.1
+      - "$(cd $HOME && GO111MODULE=off go get github.com/onsi/ginkgo/ginkgo)"
+      - "$(cd $HOME && GO111MODULE=off go get github.com/modocache/gover)"
+      - "$(cd $HOME && GO111MODULE=off go get github.com/mattn/goveralls)"
+
+  install:
+    desc: "download project dependencies"
+    silent: true
+    cmds:
+      - go mod download
+
+  verify:
+    desc: "check all preconditions to run local tasks"
+    silent: true
+    cmds:
+      - which go 12> /dev/null
+      - which ginkgo 12> /dev/null
+      - which gover 12> /dev/null
+      - which goveralls 12> /dev/null
+      - "[[ -x bin/golangci-lint ]] || (echo 'golangci-lint missing, please run task install-tools' && exit 1)"
+      - go version | grep -q "go${REQUIRED_GO_VERSION}" || (echo "wrong go version, expecting $REQUIRED_GO_VERSION" && exit 1)
+
+  lint:
+    desc: "lint and format code"
+    silent: true
+    cmds:
+      - bin/golangci-lint -E gofmt run --fix
+
+  test:
+    desc: "run unit tests"
+    silent: true
+    cmds:
+      - ginkgo -r -cover -skipPackage=integration
